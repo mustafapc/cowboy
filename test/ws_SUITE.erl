@@ -203,6 +203,25 @@ do_ws_version(Socket) ->
 	{error, closed} = gen_tcp:recv(Socket, 0, 6000),
 	ok.
 
+ws_deflate_max_frame_size_close(Config) ->
+	doc("Server closes connection when decompressed frame size exceeds max_frame_size option"),
+	%% max_frame_size is set to 8 bytes in ws_max_frame_size.
+	{ok, Socket, Headers} = do_handshake("/ws_max_frame_size",
+		"Sec-WebSocket-Extensions: permessage-deflate\r\n", Config),
+	{_, "permessage-deflate"} = lists:keyfind("sec-websocket-extensions", 1, Headers),
+	Mask = 16#11223344,
+	Z = zlib:open(),
+	zlib:deflateInit(Z, best_compression, deflated, -15, 8, default),
+	CompressedData0 = iolist_to_binary(zlib:deflate(Z, <<0:800>>, sync)),
+	CompressedData = binary:part(CompressedData0, 0, byte_size(CompressedData0) - 4),
+	MaskedData = do_mask(CompressedData, Mask, <<>>),
+	Len = byte_size(MaskedData),
+	true = Len < 8,
+	ok = gen_tcp:send(Socket, << 1:1, 1:1, 0:2, 1:4, 1:1, Len:7, Mask:32, MaskedData/binary >>),
+	{ok, << 1:1, 0:3, 8:4, 0:1, 2:7, 1009:16 >>} = gen_tcp:recv(Socket, 0, 6000),
+	{error, closed} = gen_tcp:recv(Socket, 0, 6000),
+	ok.
+
 ws_deflate_opts_client_context_takeover(Config) ->
 	doc("Handler is configured with client context takeover enabled."),
 	{ok, _, Headers1} = do_handshake("/ws_deflate_opts?client_context_takeover",
@@ -246,6 +265,21 @@ ws_deflate_opts_client_max_window_bits_override(Config) ->
 		"Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits=12\r\n", Config),
 	{_, "permessage-deflate; client_max_window_bits=9"}
 		= lists:keyfind("sec-websocket-extensions", 1, Headers2),
+	ok.
+
+%% @todo This might be better in an rfc7692_SUITE.
+%%
+%%   7.1.2.2
+%%   If a received extension negotiation offer doesn't have the
+%%   "client_max_window_bits" extension parameter, the corresponding
+%%   extension negotiation response to the offer MUST NOT include the
+%%   "client_max_window_bits" extension parameter.
+ws_deflate_opts_client_max_window_bits_only_in_server(Config) ->
+	doc("Handler is configured with non-default client max window bits but "
+		"client doesn't send the parameter; compression is disabled."),
+	{ok, _, Headers} = do_handshake("/ws_deflate_opts?client_max_window_bits",
+		"Sec-WebSocket-Extensions: permessage-deflate\r\n", Config),
+	false = lists:keyfind("sec-websocket-extensions", 1, Headers),
 	ok.
 
 ws_deflate_opts_server_context_takeover(Config) ->

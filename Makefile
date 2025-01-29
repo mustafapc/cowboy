@@ -9,6 +9,7 @@ PROJECT_REGISTERED = cowboy_clock
 
 PLT_APPS = public_key ssl # ct_helper gun common_test inets
 CT_OPTS += -ct_hooks cowboy_ct_hook [] # -boot start_sasl
+#CT_OPTS += +JPperf true +S 1
 
 # Dependencies.
 
@@ -16,7 +17,7 @@ LOCAL_DEPS = crypto
 
 DEPS = cowlib ranch
 dep_cowlib = git https://github.com/ninenines/cowlib master
-dep_ranch = git https://github.com/ninenines/ranch 1.8.0
+dep_ranch = git https://github.com/ninenines/ranch 1.8.x
 
 ifeq ($(COWBOY_QUICER),1)
 DEPS += quicer

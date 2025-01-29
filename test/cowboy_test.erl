@@ -89,9 +89,16 @@ common_all() ->
 	end.
 
 common_groups(Tests) ->
-	Opts = case os:getenv("NO_PARALLEL") of
-		false -> [parallel];
-		_ -> []
+	Parallel = case os:getenv("NO_PARALLEL") of
+		false -> parallel;
+		_ -> no_parallel
+	end,
+	common_groups(Tests, Parallel).
+
+common_groups(Tests, Parallel) ->
+	Opts = case Parallel of
+		parallel -> [parallel];
+		no_parallel -> []
 	end,
 	Groups = [
 		{http, Opts, Tests},
@@ -113,51 +120,53 @@ common_groups(Tests) ->
 			Groups
 	end.
 
+init_common_groups(Name, Config, Mod) ->
+	init_common_groups(Name, Config, Mod, #{}).
 
-init_common_groups(Name = http, Config, Mod) ->
-	init_http(Name, #{
+init_common_groups(Name = http, Config, Mod, ProtoOpts) ->
+	init_http(Name, ProtoOpts#{
 		env => #{dispatch => Mod:init_dispatch(Config)}
 	}, [{flavor, vanilla}|Config]);
-init_common_groups(Name = https, Config, Mod) ->
-	init_https(Name, #{
+init_common_groups(Name = https, Config, Mod, ProtoOpts) ->
+	init_https(Name, ProtoOpts#{
 		env => #{dispatch => Mod:init_dispatch(Config)}
 	}, [{flavor, vanilla}|Config]);
-init_common_groups(Name = h2, Config, Mod) ->
-	init_http2(Name, #{
+init_common_groups(Name = h2, Config, Mod, ProtoOpts) ->
+	init_http2(Name, ProtoOpts#{
 		env => #{dispatch => Mod:init_dispatch(Config)}
 	}, [{flavor, vanilla}|Config]);
-init_common_groups(Name = h2c, Config, Mod) ->
-	Config1 = init_http(Name, #{
+init_common_groups(Name = h2c, Config, Mod, ProtoOpts) ->
+	Config1 = init_http(Name, ProtoOpts#{
 		env => #{dispatch => Mod:init_dispatch(Config)}
 	}, [{flavor, vanilla}|Config]),
 	lists:keyreplace(protocol, 1, Config1, {protocol, http2});
-init_common_groups(Name = h3, Config, Mod) ->
-	init_http3(Name, #{
+init_common_groups(Name = h3, Config, Mod, ProtoOpts) ->
+	init_http3(Name, ProtoOpts#{
 		env => #{dispatch => Mod:init_dispatch(Config)}
 	}, [{flavor, vanilla}|Config]);
-init_common_groups(Name = http_compress, Config, Mod) ->
-	init_http(Name, #{
+init_common_groups(Name = http_compress, Config, Mod, ProtoOpts) ->
+	init_http(Name, ProtoOpts#{
 		env => #{dispatch => Mod:init_dispatch(Config)},
 		stream_handlers => [cowboy_compress_h, cowboy_stream_h]
 	}, [{flavor, compress}|Config]);
-init_common_groups(Name = https_compress, Config, Mod) ->
-	init_https(Name, #{
+init_common_groups(Name = https_compress, Config, Mod, ProtoOpts) ->
+	init_https(Name, ProtoOpts#{
 		env => #{dispatch => Mod:init_dispatch(Config)},
 		stream_handlers => [cowboy_compress_h, cowboy_stream_h]
 	}, [{flavor, compress}|Config]);
-init_common_groups(Name = h2_compress, Config, Mod) ->
-	init_http2(Name, #{
+init_common_groups(Name = h2_compress, Config, Mod, ProtoOpts) ->
+	init_http2(Name, ProtoOpts#{
 		env => #{dispatch => Mod:init_dispatch(Config)},
 		stream_handlers => [cowboy_compress_h, cowboy_stream_h]
 	}, [{flavor, compress}|Config]);
-init_common_groups(Name = h2c_compress, Config, Mod) ->
-	Config1 = init_http(Name, #{
+init_common_groups(Name = h2c_compress, Config, Mod, ProtoOpts) ->
+	Config1 = init_http(Name, ProtoOpts#{
 		env => #{dispatch => Mod:init_dispatch(Config)},
 		stream_handlers => [cowboy_compress_h, cowboy_stream_h]
 	}, [{flavor, compress}|Config]),
 	lists:keyreplace(protocol, 1, Config1, {protocol, http2});
-init_common_groups(Name = h3_compress, Config, Mod) ->
-	init_http3(Name, #{
+init_common_groups(Name = h3_compress, Config, Mod, ProtoOpts) ->
+	init_http3(Name, ProtoOpts#{
 		env => #{dispatch => Mod:init_dispatch(Config)},
 		stream_handlers => [cowboy_compress_h, cowboy_stream_h]
 	}, [{flavor, compress}|Config]).
